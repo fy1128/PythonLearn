@@ -15,10 +15,15 @@ class GetProxyIP:
 			if 0 == self.dbcursor.execute('show tables like "IP"'):
 				print 'This is First time run,we will creat sql table etc.'
 				self.dbcursor.execute('create table if not exists IP '
-									  '(ip varchar(16) NOT NULL primary key,'
-									  'port int NOT NULL,'
-									  'type TINYINT NOT NULL,'
-									  'quality TINYINT)')
+									  '(IP varchar(16) NOT NULL primary key,'
+									  'Port int NOT NULL,'
+									  'Type TINYINT NOT NULL,'
+									  'Quality TINYINT)')
+				self.dbcursor.execute('create table if not exists UnuseIP '
+				                      '(IP varchar(16) NOT NULL primary key,'
+				                      'Port int NOT NULL,'
+				                      'Type TINYINT NOT NULL,'
+				                      'CheckTimes TINYINT NOT NULL)')
 				self.dbcursor.execute('create table if not exists LastCaptureTime ('
 				                      'Domain varchar(32) NOT NULL primary key,'
 				                      'LastTime varchar(32))')
@@ -72,13 +77,19 @@ class GetProxyIP:
 			return
 
 		try:
-			self.dbcursor.execute('insert into IP (ip,port,type) values (%s,%s,%s)',
+			self.dbcursor.execute('insert into IP (IP,Port,Type) values (%s,%s,%s)',
 								  (ip,port,proxytype))
 
 			self.dbconnect.commit()
 		except MySQLdb.Error,e:
 			print e
 
+	def RemoveUnuseProxyIP(self,ip,port,type):
+		#some ProxyIP is unuse,we remove it to other table
+		self.dbcursor.execute('delete from IP where ip=%s',ip)
+		self.dbcursor.execute('insert into UnuseIP (IP,Port,Type,CheckTimes) values (%s,%s,%s,%s)',
+		                      (ip,port,type,10))
+		self.dbconnect.commit()
 	def ChangeProxyIP(self):
 		if len(self.ProxyIPPool) < 1:
 			self.UseProxyIP = 0
@@ -88,10 +99,7 @@ class GetProxyIP:
 			except MySQLdb.Error as e:
 				print e
 			return
-		randval = random.randint(0,len(self.ProxyIPPool) - 1)
-		randip = self.ProxyIPPool[randval]
-		self.ProxyIP = randip[0]
-		self.ProxyPort = randip[1]
+		self.ProxyIPPos = random.randint(0,len(self.ProxyIPPool) - 1)
 		self.UseProxyIP = 1
 
 
@@ -100,8 +108,9 @@ class GetProxyIP:
 		#get proxy ip from xicidaili
 		def xicidaili_CaptureIp(page):
 			if self.UseProxyIP:
-				# req.set_proxy(self.ProxyIP + ':' + str(self.ProxyPort),'http')
-				proxy_set = {'http': self.ProxyIP + ':' + str(self.ProxyPort)}
+				randip = self.ProxyIPPool[self.ProxyIPPos]
+				# req.set_proxy(randip[0] + ':' + str(randip[1]),'http')
+				proxy_set = {'http': randip[0] + ':' + str(randip[1])}
 				proxy_support = urllib2.ProxyHandler(proxy_set)
 				opener = urllib2.build_opener(proxy_support)
 				urllib2.install_opener(opener)
@@ -119,6 +128,10 @@ class GetProxyIP:
 				rsp = urllib2.urlopen(req, timeout=5)
 			except urllib2.URLError, e:
 				#this Proxy IP is unuseable,change it
+				randip = self.ProxyIPPool[self.ProxyIPPos]
+				self.RemoveUnuseProxyIP(randip[0],randip[1],randip[2])
+				self.ChangeProxyIP()
+				print 'ProxyIP unuse',randip[0],randip[1]
 				return -1
 
 			try:
