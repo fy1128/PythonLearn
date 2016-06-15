@@ -4,6 +4,7 @@ import urllib2
 from bs4 import BeautifulSoup
 import MySQLdb
 import random
+import sys
 
 
 class GetProxyIP:
@@ -35,15 +36,15 @@ class GetProxyIP:
 				try:
 					self.dbcursor.execute('select * from IP limit 0,10')
 					self.ProxyIPPool = list(self.dbcursor.fetchall())
-					self.dbcursor.execute('delete from LastCaptureTime where Domain="www.xicidaili.com"')
-					#self.dbcursor.execute('delete from IP')
-					#self.dbcursor.execute('delete from UnuseIP')
-					self.dbconnect.commit()
-				except MySQLdb.Error as e:
+				except MySQLdb.Error,e:
 					print e
+				except:
+					print 'Expection @ ',sys._getframe().f_code.co_filename,sys._getframe().f_code.co_name,sys._getframe().f_lineno
 		except MySQLdb.Error, e:
 			print e
 			exit(-1)
+		except:
+			print 'Expection @ ',sys._getframe().f_code.co_filename,sys._getframe().f_code.co_name,sys._getframe().f_lineno
 		self.UseProxyIP = 0
 
 	def Close(self):
@@ -60,6 +61,7 @@ class GetProxyIP:
 				if (addr < 0) or (addr > 255):
 					return -1
 			except:
+				print 'Expection @ ', sys._getframe().f_code.co_filename, sys._getframe().f_code.co_name, sys._getframe().f_lineno
 				return -1
 		return 0
 
@@ -86,6 +88,8 @@ class GetProxyIP:
 			self.dbconnect.commit()
 		except MySQLdb.Error, e:
 			print e
+		except:
+			print 'Expection @ ', sys._getframe().f_code.co_filename, sys._getframe().f_code.co_name, sys._getframe().f_lineno
 
 	def RemoveUnuseProxyIP(self, ip, port, type):
 		# some ProxyIP is unuse,we remove it to other table
@@ -94,23 +98,27 @@ class GetProxyIP:
 			self.dbcursor.execute('insert into UnuseIP (IP,Port,Type,CheckTimes) values (%s,%s,%s,%s)',
 			                      (ip, port, type, 10))
 			self.dbconnect.commit()
-		except MySQLdb.Error as e:
-			print e
+		except MySQLdb.Error,e:
+			print sys._getframe().f_code.co_name,e
+		except:
+			print 'Expection @ ', sys._getframe().f_code.co_filename, sys._getframe().f_code.co_name, sys._getframe().f_lineno
 
 	def ChangeProxyIP(self):
-		print 'ProxyIPPool number',str(len(self.ProxyIPPool))
+		#print 'ProxyIPPool number',str(len(self.ProxyIPPool))
 		if len(self.ProxyIPPool) < 1:
-			print 'ProxyIPPool empty'
+			#print 'ProxyIPPool empty'
 			try:
 				self.dbcursor.execute('select * from IP limit 0,10')
 				self.ProxyIPPool = list(self.dbcursor.fetchall())
-			except MySQLdb.Error as e:
+			except MySQLdb.Error,e:
 				print e
 				self.UseProxyIP = 0
 				return
+			except:
+				print 'Expection @ ', sys._getframe().f_code.co_filename, sys._getframe().f_code.co_name, sys._getframe().f_lineno
 		if len(self.ProxyIPPool) >= 1:
 			self.ProxyIPPos = random.randint(0, len(self.ProxyIPPool) - 1)
-			print 'Use new pos',self.ProxyIPPos
+			#print 'Use new pos',self.ProxyIPPos
 			self.UseProxyIP = 1
 		else:
 			self.UseProxyIP = 0
@@ -141,9 +149,9 @@ class GetProxyIP:
 
 			try:
 				rsp = urllib2.urlopen(req, timeout=5)
-			except urllib2.URLError, e:
+			except :
 				# this Proxy IP is unuseable,change it
-				print e,'xxx'
+				print 'Expection @ ', sys._getframe().f_code.co_filename, sys._getframe().f_code.co_name, sys._getframe().f_lineno
 				if self.UseProxyIP:
 					randip = self.ProxyIPPool[self.ProxyIPPos]
 					print 'ProxyIP unuse', randip[0], randip[1]
@@ -158,9 +166,12 @@ class GetProxyIP:
 				for tr in trs[1:]:
 					tds = tr.findAll('td')
 					self.InsertIP(tds[1].text.strip(), int(tds[2].text.strip()), tds[5].text.strip())
-			except:# Exception as e:
-				#print e[0],str(e[1,1])
-				print 'Deal html page error'
+			except Exception,e:
+				print e
+				return -1
+			except:
+				print 'Expection @ ', sys._getframe().f_code.co_filename, sys._getframe().f_code.co_name, sys._getframe().f_lineno
+				return -1
 			return 0
 
 		# check if we was first capture
@@ -169,6 +180,7 @@ class GetProxyIP:
 											'Domain="www.xicidaili.com"'):
 				# yes,it first run
 				# get total page
+				LastTime = '00-00-00 00:00'
 				req = urllib2.Request('http://www.xicidaili.com/nn')
 				req.add_header('User-Agent',
 								'Mozilla/5.0 (X11; Linux i686; rv:31.0) Gecko/20100101 Firefox/31.0 Iceweasel/31.8.0')
@@ -176,14 +188,21 @@ class GetProxyIP:
 					soup = BeautifulSoup(urllib2.urlopen(req, timeout=5), 'html5lib')
 					trs = soup.find('div', {'class': 'pagination'}).findAll('a')
 					if len(trs) < 3:
-						return
+						return -1
 					TotalPage = trs[-2].text.strip()
-				except Exception as e:
+					trs = soup.find('table', {'id': 'ip_list'}).findAll('tr')
+					tr = trs[1]
+					tds = tr.findAll('td')
+					LastTime = tds[9].text.strip()
+				except BaseException,e:
 					print e
 					return -1
+				except:
+					print 'Expection @ ', sys._getframe().f_code.co_filename, sys._getframe().f_code.co_name, sys._getframe().f_lineno
+					return -1
 
-				self.dbcursor.execute('insert into LastCaptureTime (Domain) values '
-									'("www.xicidaili.com")')
+				self.dbcursor.execute('insert into LastCaptureTime (Domain,LastTime) values '
+									'("www.xicidaili.com",%s)',LastTime)
 				self.dbconnect.commit()
 				print 'First time to capture www.xicidaili.com ,tatal page :', TotalPage
 				page = 1
@@ -196,9 +215,15 @@ class GetProxyIP:
 						print 'xicidaili GetPage', page, 'Failure'
 				print 'OK,first time run over'
 				return
+			else:
+				pass
+				print 'else'
 
 		except Exception as e:
 			print e
+			return -1
+		except:
+			print 'Expection @ ', sys._getframe().f_code.co_filename, sys._getframe().f_code.co_name, sys._getframe().f_lineno
 			return -1
 
 
