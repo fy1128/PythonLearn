@@ -83,7 +83,7 @@ class GetProxyIP:
 
 		try:
 			self.dbcursor.execute('insert into IP (IP,Port,Type) values (%s,%s,%s)',
-			                      (ip, port, proxytype))
+			                      ((ip, port, proxytype),))
 
 			self.dbconnect.commit()
 		except MySQLdb.Error, e:
@@ -94,9 +94,9 @@ class GetProxyIP:
 	def RemoveUnuseProxyIP(self, ip, port, type):
 		# some ProxyIP is unuse,we remove it to other table
 		try:
-			self.dbcursor.execute('delete from IP where ip=%s', ip)
+			self.dbcursor.execute('delete from IP where ip=%s', (ip,))
 			self.dbcursor.execute('insert into UnuseIP (IP,Port,Type,CheckTimes) values (%s,%s,%s,%s)',
-			                      (ip, port, type, 10))
+			                      ((ip, port, type, 10),))
 			self.dbconnect.commit()
 		except MySQLdb.Error,e:
 			print sys._getframe().f_code.co_name,e
@@ -196,9 +196,14 @@ class GetProxyIP:
 					print 'Expection @ ', sys._getframe().f_code.co_filename, sys._getframe().f_code.co_name, sys._getframe().f_lineno
 					return -1
 
-				self.dbcursor.execute('insert into LastCaptureTime (Domain,LastTime) values '
-									'("www.xicidaili.com",%s)',LastTime)
-				self.dbconnect.commit()
+				try:
+					self.dbcursor.execute('insert into LastCaptureTime (Domain,LastTime) values '
+										'("www.xicidaili.com",%s)',(LastTime,))
+					self.dbconnect.commit()
+				except BaseException,e:
+					print e
+					return -1
+
 				print 'First time to capture www.xicidaili.com ,tatal page :', TotalPage
 				page = 1
 				while page <= TotalPage:
