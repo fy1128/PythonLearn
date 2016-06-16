@@ -149,15 +149,9 @@ class GetProxyIP:
 
 			try:
 				rsp = urllib2.urlopen(req, timeout=5)
-			except :
+			except BaseException,e:
 				# this Proxy IP is unuseable,change it
-				print 'Expection @ ', sys._getframe().f_code.co_filename, sys._getframe().f_code.co_name, sys._getframe().f_lineno
-				if self.UseProxyIP:
-					randip = self.ProxyIPPool[self.ProxyIPPos]
-					print 'ProxyIP unuse', randip[0], randip[1]
-					self.RemoveUnuseProxyIP(randip[0], randip[1], randip[2])
-					del self.ProxyIPPool[self.ProxyIPPos]
-				self.ChangeProxyIP()
+				print e,'Expection @ ', sys._getframe().f_code.co_filename, sys._getframe().f_code.co_name, sys._getframe().f_lineno
 				return -1
 
 			try:
@@ -168,6 +162,7 @@ class GetProxyIP:
 					self.InsertIP(tds[1].text.strip(), int(tds[2].text.strip()), tds[5].text.strip())
 			except Exception,e:
 				print e
+				print 'Expection @ ', sys._getframe().f_code.co_filename, sys._getframe().f_code.co_name, sys._getframe().f_lineno
 				return -1
 			except:
 				print 'Expection @ ', sys._getframe().f_code.co_filename, sys._getframe().f_code.co_name, sys._getframe().f_lineno
@@ -212,6 +207,12 @@ class GetProxyIP:
 						print 'xicidaili GetPage', page, 'Success'
 						page += 1
 					else:
+						if self.UseProxyIP:
+							randip = self.ProxyIPPool[self.ProxyIPPos]
+							print 'ProxyIP unuse', randip[0], randip[1]
+							self.RemoveUnuseProxyIP(randip[0], randip[1], randip[2])
+							del self.ProxyIPPool[self.ProxyIPPos]
+						self.ChangeProxyIP()
 						print 'xicidaili GetPage', page, 'Failure'
 				print 'OK,first time run over'
 				return

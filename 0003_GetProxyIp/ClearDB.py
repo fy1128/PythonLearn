@@ -7,10 +7,6 @@ if '__main__' == __name__:
 		dbcursor = dbconnect.cursor()
 		dbcursor.execute('delete from LastCaptureTime where Domain="www.xicidaili.com"')
 		dbconnect.commit()
-		dbcursor.execute('drop from IP')
-		dbconnect.commit()
-		dbcursor.execute('delete from UnuseIP')
-		dbconnect.commit()
 		dbcursor.close()
 		dbconnect.close()
 	except MySQLdb.Error,e:
