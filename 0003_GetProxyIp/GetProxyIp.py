@@ -83,7 +83,7 @@ class GetProxyIP:
 
 		try:
 			self.dbcursor.execute('insert into IP (IP,Port,Type) values (%s,%s,%s)',
-			                      ((ip, port, proxytype)))
+			                      (ip, port, proxytype))
 
 			self.dbconnect.commit()
 		except MySQLdb.Error, e:
@@ -96,7 +96,7 @@ class GetProxyIP:
 		try:
 			self.dbcursor.execute('delete from IP where ip=%s', (ip,))
 			self.dbcursor.execute('insert into UnuseIP (IP,Port,Type,CheckTimes) values (%s,%s,%s,%s)',
-			                      ((ip, port, type, 10)))
+			                      (ip, port, type, 10))
 			self.dbconnect.commit()
 		except MySQLdb.Error,e:
 			print sys._getframe().f_code.co_name,e
