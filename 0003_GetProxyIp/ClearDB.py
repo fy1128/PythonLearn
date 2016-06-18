@@ -5,7 +5,7 @@ if '__main__' == __name__:
 	try:
 		dbconnect = MySQLdb.connect(user='baicai', passwd='baicai', db='proxyip')
 		dbcursor = dbconnect.cursor()
-		dbcursor.execute('delete from LastCaptureTime where Domain="www.xicidaili.com"')
+		dbcursor.execute('delete from LastCaptureTime ')
 		dbconnect.commit()
 		dbcursor.close()
 		dbconnect.close()
