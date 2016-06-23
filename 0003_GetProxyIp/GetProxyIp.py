@@ -239,7 +239,7 @@ class GetProxyIP:
 						if 1 != page:
 							requrl = Url + '/' + str(page)
 						if 0 == xicidaili_CaptureIp(requrl,'00-00-00 00:01'):
-							print 'xicidaili GetPage', page, 'Success,total page :',TotalPage
+							print 'xicidaili GetPage', page, 'Success,total page :', TotalPage
 							page += 1
 						else:
 							print 'xicidaili GetPage', page, 'Failure,total page :',TotalPage
