@@ -239,10 +239,10 @@ class GetProxyIP:
 						if 1 != page:
 							requrl = Url + '/' + str(page)
 						if 0 == xicidaili_CaptureIp(requrl,'00-00-00 00:01'):
-							print 'xicidaili GetPage', page, 'Success'
+							print 'xicidaili GetPage', page, 'Success,total page :',TotalPage
 							page += 1
 						else:
-							print 'xicidaili GetPage', page, 'Failure'
+							print 'xicidaili GetPage', page, 'Failure,total page :',TotalPage
 							if self.UseProxyIP:
 								randip = self.ProxyIPPool[self.ProxyIPPos]
 								#print 'ProxyIP unuse', randip[0], randip[1]
