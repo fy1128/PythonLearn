@@ -306,6 +306,7 @@ class GetProxyIP:
 
 				req = requests.get(Url, timeout=5, headers=headers,proxies=proxy_set)
 				req.raise_for_status()
+				soup = BeautifulSoup(req.text, 'lxml')
 				trs = soup.find('tbody').findAll('tr')
 				for tr in trs:
 					tds = tr.findAll('td')
