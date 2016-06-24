@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import urllib2
+import requests
 from bs4 import BeautifulSoup
 import MySQLdb
 import random
@@ -25,7 +26,7 @@ class GetProxyIP:
 				                      'Type TINYINT NOT NULL,'
 				                      'CheckTimes TINYINT NOT NULL)')
 				self.dbcursor.execute('create table if not exists LastCaptureTime ('
-				                      'Domain varchar(32) NOT NULL primary key,'
+				                      'Domain varchar(128) NOT NULL primary key,'
 				                      'LastTime varchar(32))')
 				self.dbconnect.commit()
 				self.FirstRun = 1
@@ -192,14 +193,36 @@ class GetProxyIP:
 				return -1
 			return 0
 
+		def xicidaili_CaptureWithLoop(TotalPage,Url,LastTime):
+			page = 1
+			while page <= TotalPage:
+				requrl = Url
+				if 1 != page:
+					requrl = Url + '/' + str(page)
+				if 0 == xicidaili_CaptureIp(requrl,LastTime):
+					print 'xicidaili GetPage', page, 'Success,total page :', TotalPage
+					page += 1
+				else:
+					print 'xicidaili GetPage', page, 'Failure,total page :', TotalPage
+					if self.UseProxyIP:
+						randip = self.ProxyIPPool[self.ProxyIPPos]
+						# print 'ProxyIP unuse', randip[0], randip[1]
+						self.RemoveUnuseProxyIP(randip[0], randip[1])
+						del self.ProxyIPPool[self.ProxyIPPos]
+						self.ChangeProxyIP()
+					else:
+						raise ValueError('Expect when not use proxy ip')
+				if 0 == self.UseProxyIP:
+					self.ChangeProxyIP()
+			return
+
 		urlarr = ('nn','nt','wn','wt')
 		for url in urlarr:
 			# check if we was first capture
 			try:
 				Url = 'http://www.xicidaili.com/' + url
-				if 0 == self.dbcursor.execute('select * from LastCaptureTime where '
+				if 0 == self.dbcursor.execute('select LastTime from LastCaptureTime where '
 												'Domain = %s',(Url,)):
-					# yes,it first run
 					# get total page
 					LastTime = '00-00-00 00:00'
 					TotalPage = None
@@ -232,34 +255,14 @@ class GetProxyIP:
 						return -1
 
 					print 'First time to capture www.xicidaili.com ,tatal page :', TotalPage
-					page = 1
-					while page <= TotalPage:
-						# WARNING!!! IT WILL TASK A LONG LONG TIME
-						requrl = Url
-						if 1 != page:
-							requrl = Url + '/' + str(page)
-						if 0 == xicidaili_CaptureIp(requrl,'00-00-00 00:01'):
-							print 'xicidaili GetPage', page, 'Success,total page :', TotalPage
-							page += 1
-						else:
-							print 'xicidaili GetPage', page, 'Failure,total page :',TotalPage
-							if self.UseProxyIP:
-								randip = self.ProxyIPPool[self.ProxyIPPos]
-								#print 'ProxyIP unuse', randip[0], randip[1]
-								self.RemoveUnuseProxyIP(randip[0], randip[1])
-								del self.ProxyIPPool[self.ProxyIPPos]
-								self.ChangeProxyIP()
-							else:
-								raise ValueError('Expect when not use proxy ip')
-						if 0 == self.UseProxyIP:
-							self.ChangeProxyIP()
-
+					# WARNING!!! IT WILL TASK A LONG LONG TIME
+					xicidaili_CaptureWithLoop(TotalPage,Url,'00-00-00 00:01')
 					print 'OK,first time run over'
-					return
+
 				else:
 					lasttime = self.dbcursor.fetchall()
-					print lasttime
-					print 'else'
+					print lasttime[0]
+					xicidaili_CaptureWithLoop(10,Url,lasttime)
 
 			except Exception as e:
 				print e
@@ -269,8 +272,117 @@ class GetProxyIP:
 				return -1
 
 
+	def GetProxyIP_kuaidaili(self):
+		def kuaidaili_TimeToINT(time):
+			# time format is YY-MM-DD HH-MM
+			try:
+				T = time.split(' ')
+				if 2 != len(T):
+					return 0
+				d = T[0].split('-')
+				m = T[1].split(':')
+				if (3 != len(d)) or (3 != len(m)):
+					return 0
+				return (int)(d[0]) << 20 | (int)(d[1]) << 16 | (int)(d[2]) << 11 | (int)(m[0]) << 6 | (int)(m[1])
+			except:
+				print 'Unknow Time', time
+				return 0
+
+		def kuaidaili_CaptureIP(requrl,lasttime):
+			lt = kuaidaili_TimeToINT(lasttime)
+			if 0 == lt:
+				return -1
+			NewLastTime = None
+			try:
+				headers = {
+					'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:38.0) Gecko/20100101 Firefox/38.0 Iceweasel/38.7.1'}
+
+				proxy_set = None
+				if self.UseProxyIP:
+					proxy_set = {'http': 'http://' + self.ProxyIPPool[self.ProxyIPPos][0]}
+				else:
+					print 'Warning!!!,not use proxy ip'
+					self.ChangeProxyIP()
+
+				req = requests.get(Url, timeout=5, headers=headers,proxies=proxy_set)
+				req.raise_for_status()
+				trs = soup.find('tbody').findAll('tr')
+				for tr in trs:
+					tds = tr.findAll('td')
+					if None == NewLastTime:
+						NewLastTime = tds[6].text.strip()
+					if lt <= kuaidaili_TimeToINT(tds[6].text.strip()):
+						self.InsertIP(tds[0].text.strip(), int(tds[1].text.strip()), tds[3].text.strip())
+					else:
+						print 'Capture Over,New LastTime', NewLastTime
+						return NewLastTime
+				return 0
+			except Exception, e:
+				print e
+				return -1
+			except:
+				print 'Expection @ ', sys._getframe().f_code.co_filename, sys._getframe().f_code.co_name, sys._getframe().f_lineno
+				return -1
+
+		def kuaidaili_CaptureWithLoop(TotalPage,Url,LastTime):
+			page = 1
+			while page <= TotalPage:
+				requrl = Url
+				if 1 != page:
+					requrl = Url + '/' + str(page)
+				if 0 == kuaidaili_CaptureIP(requrl, LastTime):
+					print 'Get',requrl,'Success'
+					page += 1
+				else:
+					print 'Get', requrl, 'Failure'
+					if self.UseProxyIP:
+						randip = self.ProxyIPPool[self.ProxyIPPos]
+						# print 'ProxyIP unuse', randip[0], randip[1]
+						self.RemoveUnuseProxyIP(randip[0], randip[1])
+						del self.ProxyIPPool[self.ProxyIPPos]
+						self.ChangeProxyIP()
+					else:
+						raise ValueError('Expect when not use proxy ip')
+				if 0 == self.UseProxyIP:
+					self.ChangeProxyIP()
+			return
+
+		urlarr = ('inha','intr','outha','outtr')
+		for url in urlarr:
+			try:
+				Url = 'http://www.kuaidaili.com/free/' + url
+				if 0 == self.dbcursor.execute('select LastTime from LastCaptureTime where '
+				                              'Domain = %s', (Url,)):
+					headers = {'User-Agent':'Mozilla/5.0 (X11; Linux x86_64; rv:38.0) Gecko/20100101 Firefox/38.0 Iceweasel/38.7.1'}
+					req = requests.get(Url,timeout = 5,headers = headers)
+					req.raise_for_status()
+					soup = BeautifulSoup(req.text, 'lxml')
+					trs = soup.find('div', {'id': 'listnav'}).findAll('a')
+					if len(trs) < 3:
+						return -1
+					TotalPage = (int)(trs[-1].text.strip())
+					trs = soup.find('tbody').findAll('tr')
+					tds = trs[0].findAll('td')
+					LastTime = tds[6].text.strip()
+					self.dbcursor.execute('insert into LastCaptureTime (Domain,LastTime) values '
+					                      '(%s,%s)', (Url, LastTime))
+					self.dbconnect.commit()
+					print 'First Time to Capture',Url,'Total Page :',TotalPage
+					kuaidaili_CaptureWithLoop(TotalPage,Url,'0000-00-00 00:01:00')
+				else:
+					lasttime = self.dbcursor.fetchall()
+					print lasttime[0]
+					kuaidaili_CaptureWithLoop(10, Url, lasttime)
+			except Exception,e:
+				print e
+				return -1
+			except:
+				print 'Expection @ ', sys._getframe().f_code.co_filename, sys._getframe().f_code.co_name, sys._getframe().f_lineno
+				return -1
+
 if '__main__' == __name__:
 	getproxyop = GetProxyIP()
 	getproxyop.ChangeProxyIP()
-	getproxyop.GetProxyIP_xicidaili()
+	#getproxyop.GetProxyIP_xicidaili()
+	getproxyop.GetProxyIP_kuaidaili()
 	getproxyop.Close()
