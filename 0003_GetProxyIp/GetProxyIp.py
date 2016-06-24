@@ -211,7 +211,7 @@ class GetProxyIP:
 						trs = soup.find('div', {'class': 'pagination'}).findAll('a')
 						if len(trs) < 3:
 							return -1
-						TotalPage = trs[-2].text.strip()
+						TotalPage = (int)(trs[-2].text.strip())
 						trs = soup.find('table', {'id': 'ip_list'}).findAll('tr')
 						tr = trs[1]
 						tds = tr.findAll('td')
