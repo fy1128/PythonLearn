@@ -153,7 +153,6 @@ class GetProxyIP:
 			req.add_header('User-Agent','Mozilla/5.0 (X11; Linux i686; rv:31.0) Gecko/20100101 Firefox/32.0 Iceweasel/31.8.0')
 
 			if self.UseProxyIP:
-				#req.set_proxy(self.ProxyIPPool[self.ProxyIPPos],'http')
 				proxy_set = {'http': self.ProxyIPPool[self.ProxyIPPos][0]}
 				proxy_support = urllib2.ProxyHandler(proxy_set)
 				opener = urllib2.build_opener(proxy_support)
@@ -200,10 +199,10 @@ class GetProxyIP:
 				if 1 != page:
 					requrl = Url + '/' + str(page)
 				if 0 == xicidaili_CaptureIp(requrl,LastTime):
-					print 'xicidaili GetPage', page, 'Success,total page :', TotalPage
+					print 'Get', requrl, 'Success,total page :', TotalPage
 					page += 1
 				else:
-					print 'xicidaili GetPage', page, 'Failure,total page :', TotalPage
+					print 'Get', requrl, 'Failure,total page :', TotalPage
 					if self.UseProxyIP:
 						randip = self.ProxyIPPool[self.ProxyIPPos]
 						# print 'ProxyIP unuse', randip[0], randip[1]
@@ -246,6 +245,12 @@ class GetProxyIP:
 						print 'Expection @ ', sys._getframe().f_code.co_filename, sys._getframe().f_code.co_name, sys._getframe().f_lineno
 						return -1
 
+
+					print 'First time to capture ',Url,'tatal page :', TotalPage
+					# WARNING!!! IT WILL TASK A LONG LONG TIME
+					xicidaili_CaptureWithLoop(TotalPage,Url,'00-00-00 00:01')
+					print 'OK,first time run over'
+
 					try:
 						self.dbcursor.execute('insert into LastCaptureTime (Domain,LastTime) values '
 											'(%s,%s)',(Url,LastTime))
@@ -254,15 +259,10 @@ class GetProxyIP:
 						print e
 						return -1
 
-					print 'First time to capture www.xicidaili.com ,tatal page :', TotalPage
-					# WARNING!!! IT WILL TASK A LONG LONG TIME
-					xicidaili_CaptureWithLoop(TotalPage,Url,'00-00-00 00:01')
-					print 'OK,first time run over'
-
 				else:
 					lasttime = self.dbcursor.fetchall()
 					print lasttime[0]
-					xicidaili_CaptureWithLoop(10,Url,lasttime)
+					xicidaili_CaptureWithLoop(10,Url,lasttime[0])
 
 			except Exception as e:
 				print e
@@ -332,10 +332,10 @@ class GetProxyIP:
 				if 1 != page:
 					requrl = Url + '/' + str(page)
 				if 0 == kuaidaili_CaptureIP(requrl, LastTime):
-					print 'Get',requrl,'Success'
+					print 'Get', requrl, 'Success,total page :', TotalPage
 					page += 1
 				else:
-					print 'Get', requrl, 'Failure'
+					print 'Get', requrl, 'Failure,total page :', TotalPage
 					if self.UseProxyIP:
 						randip = self.ProxyIPPool[self.ProxyIPPos]
 						# print 'ProxyIP unuse', randip[0], randip[1]
@@ -368,12 +368,12 @@ class GetProxyIP:
 					self.dbcursor.execute('insert into LastCaptureTime (Domain,LastTime) values '
 					                      '(%s,%s)', (Url, LastTime))
 					self.dbconnect.commit()
-					print 'First Time to Capture',Url,'Total Page :',TotalPage
+					print 'First time to capture ', Url, 'tatal page :', TotalPage
 					kuaidaili_CaptureWithLoop(TotalPage,Url,'0000-00-00 00:01:00')
 				else:
 					lasttime = self.dbcursor.fetchall()
 					print lasttime[0]
-					kuaidaili_CaptureWithLoop(10, Url, lasttime)
+					kuaidaili_CaptureWithLoop(10, Url, lasttime[0])
 			except Exception,e:
 				print e
 				return -1
@@ -384,6 +384,6 @@ class GetProxyIP:
 if '__main__' == __name__:
 	getproxyop = GetProxyIP()
 	getproxyop.ChangeProxyIP()
-	#getproxyop.GetProxyIP_xicidaili()
+	getproxyop.GetProxyIP_xicidaili()
 	getproxyop.GetProxyIP_kuaidaili()
 	getproxyop.Close()
