@@ -31,7 +31,7 @@ class Text:
             req = requests.get(url=Url, headers=headers)
             req.raise_for_status()
             soup = BeautifulSoup(req.text, 'lxml')
-            trs = soup.find('table', border='1', cellspacing='0', cellpadding='0').findAll('tr')
+            trs = soup.find('table', border='0', cellspacing='0', cellpadding='0').findAll('tr')
             for tr in trs[1:]:
                 tds = tr.findAll('td')
                 ipport = proxylist_ParseFunctionZ2Str(tds[1].text.strip())+':'+proxylist_ParseFunctionZ2Str(tds[2].text.strip())
