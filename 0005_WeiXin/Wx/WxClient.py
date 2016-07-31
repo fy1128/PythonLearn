@@ -47,7 +47,6 @@ class WxClient():
                 redirect_url = None
                 if code:
                     if '200' == code.group(1):
-                        print 'Login Success...'
                         redirect_url = reurl.group(1)
                         break;
                     elif '201' == code.group(1):
@@ -76,7 +75,7 @@ class WxClient():
                     self.Info_Base['pass_ticket'] = info.childNodes[0].data
                 else:
                     pass
-            print self.BaseRequest
+
             #post to get SyncKey and my user info
             PostParams = {
                 'BaseRequest' : self.BaseRequest,
@@ -87,6 +86,8 @@ class WxClient():
             infoDict = json.loads(r.text)
             self.Info_User = infoDict['User']
             self.Info_SyncKey = infoDict['SyncKey']
+            self.Info_SyncKeyStr = '|'.join(str(KeyVal['Key']) + '_' + str(KeyVal['Val']) for KeyVal in self.Info_SyncKey['List'])
+
             if 0 != infoDict['BaseResponse']['Ret']:
                 print 'Get SyncKey and MyUserInfo Failure...'
                 return False
@@ -147,23 +148,76 @@ class WxClient():
                 return False
             print 'Login Success...'
             self.IsLogin = True
+            return True
         except Exception as e:
             print e.message, traceback.format_exc()
             return False
 
     def SyncCheck(self):
+        '''
+            return : Exit , MsgDic
+        '''
+        Exit = 1
+        MsgDic = None
         try:
-            r = self.Session.get('https://webpush.wx.qq.com/cgi-bin/mmwebwx-bin/synccheck?r=1469866755970&skey=%40crypt_319dbe2b_4cb380ebd18a2bedec4d28f7b5f00b5d&sid=u4%2BialGnZh7vYKbU&uin=1137975161&deviceid=e478565114849544&synckey=1_652566122%7C2_652566184%7C3_652566107%7C11_652565551%7C13_652560047%7C201_1469865939%7C1000_1469856425%7C1001_1469851411&_=1469865972055')
-        except:
-            pass
+            r = self.Session.get('https://webpush.wx.qq.com/cgi-bin/mmwebwx-bin/synccheck?r=%s&skey=%s&sid=%s&deviceid=%s&synckey=%s&_=%s' % (~int(time.time()),self.BaseRequest['Skey'],self.BaseRequest['Sid'],self.BaseRequest['DeviceID'],self.Info_SyncKeyStr,int(time.time())))
+            print r.text
+            pm = re.search(r'window.synccheck=\{retcode:"(\d+)",selector:"(\d+)"\}',r.text)
+            retcode = pm.group(1)
+            selector = pm.group(2)
+            if '1100' == retcode:
+                print 'login from Wx App,so we logout'
+            elif '1101' == retcode:
+                print 'xxxxx'
+            elif '0' == retcode:
+                Exit = 0
+                print 'selector',selector
+
+                PostParam = {
+                    'BaseRequest' : self.BaseRequest,
+                    'SyncKey' : self.Info_SyncKey,
+                    'rr' : ~int(time.time())
+                    }
+                r = self.Session.post('https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxsync?sid=%s&skey=%s&lang=zh_CN&pass_ticket=%s' %
+                                      (self.BaseRequest['Sid'],self.BaseRequest['Skey'],self.Info_Base['pass_ticket']),
+                                      data = json.dumps(PostParam))
+                r.encoding = 'utf-8'
+                MsgDic = json.loads(r.text)
+                if 0 == MsgDic['BaseResponse']['Ret']:
+                    self.Info_SyncKey = MsgDic['SyncKey']
+                    self.Info_SyncKeyStr = '|'.join(str(KeyVal['Key']) + '_' + str(KeyVal['Val']) for KeyVal in self.Info_SyncKey['List'])
+                else:
+                    print 'POST SyncCkeck is not zero',Msg['BaseResponse']['Ret']
+            else:
+                print 'Unknow code',retcode,selector
+                Exit = 1
+        except Exception as e:
+            print e.message, traceback.format_exc()
+        finally:
+            return Exit,MsgDic
+
     def GetAllFriends(self):
         if True == self.IsLogin:
             try:
                 r = self.Session.get('https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxgetcontact?lang=zh_CN&pass_ticket=%s&r=%s&seq=0&skey=%s' % (self.Info_Base['pass_ticket'],int(time.time()),self.BaseRequest['Skey']))
                 r.encoding = 'utf-8'
-                print r.text
+                #print r.text
+                with open('contacts.json', 'w') as f:
+                    f.write(r.text.encode('utf-8'))
+                    f.close()
+                retjson = json.loads(r.text)
+                print 'Total friends number',retjson['MemberCount']
+                self.Friends = retjson['MemberList']
             except Exception as e:
                 print e.message, traceback.format_exc()
+    def Run(self):
+        while True:
+            Exit,MsgDic = self.SyncCheck()
+            if Exit:
+                return False
+            if None != MsgDic:
+                print MsgDic
+            time.sleep(1)
 
 
 
