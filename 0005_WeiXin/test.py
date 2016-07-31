@@ -1,5 +1,5 @@
-import requests
+import Wx
+
+wx = Wx.Wx()
 
 
-req = requests.get('http://wx.qq.com')
-print req.text
