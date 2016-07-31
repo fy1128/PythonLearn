@@ -17,9 +17,14 @@ class WxClient():
             }
         self.Info_Base = {}
         self.Info_SyncKey = {}
+        self.Info_SyncKeyStr = None
         self.Info_User = {}
         self.IsLogin = False
-
+        self.SelectOR = {
+            '7' : 'touch on APP',
+            '6' : 'Have a Msg',
+            '2' : 'Send a Msg on APP',
+            }
     def WxLogin(self):
         '''
             web weixin login
@@ -146,6 +151,7 @@ class WxClient():
 
             if True != WaitForLogin(self):
                 return False
+
             print 'Login Success...'
             self.IsLogin = True
             return True
@@ -157,11 +163,40 @@ class WxClient():
         '''
             return : Exit , MsgDic
         '''
+        def PostSyncCheck(self):
+            PostParam = {
+                'BaseRequest' : self.BaseRequest,
+                'SyncKey' : self.Info_SyncKey,
+                'rr' : ~int(time.time())
+                }
+            r = self.Session.post('https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxsync?sid=%s&skey=%s&lang=zh_CN&pass_ticket=%s' %
+                                  (self.BaseRequest['Sid'],self.BaseRequest['Skey'],self.Info_Base['pass_ticket']),
+                                  data = json.dumps(PostParam))
+            r.encoding = 'utf-8'
+            retjson = json.loads(r.text)
+            if 0 == retjson['BaseResponse']['Ret']:
+                self.Info_SyncKey = retjson['SyncKey']
+                self.Info_SyncKeyStr = '|'.join(str(KeyVal['Key']) + '_' + str(KeyVal['Val']) for KeyVal in self.Info_SyncKey['List'])
+                return retjson
+            else:
+                print 'POST SyncCkeck is not zero',Msg['BaseResponse']['Ret']
+                return None
+
         Exit = 1
         MsgDic = None
         try:
-            r = self.Session.get('https://webpush.wx.qq.com/cgi-bin/mmwebwx-bin/synccheck?r=%s&skey=%s&sid=%s&deviceid=%s&synckey=%s&_=%s' % (~int(time.time()),self.BaseRequest['Skey'],self.BaseRequest['Sid'],self.BaseRequest['DeviceID'],self.Info_SyncKeyStr,int(time.time())))
-            print r.text
+
+            params = {
+                'r': int(time.time()),
+                'sid': self.BaseRequest['Sid'],
+                'uin': self.BaseRequest['Uin'],
+                'skey': self.BaseRequest['Skey'],
+                'deviceid': self.BaseRequest['DeviceID'],
+                'synckey': self.Info_SyncKeyStr,
+                '_': int(time.time()),
+            }
+
+            r = self.Session.get('https://webpush.wx.qq.com/cgi-bin/mmwebwx-bin/synccheck',params = params)
             pm = re.search(r'window.synccheck=\{retcode:"(\d+)",selector:"(\d+)"\}',r.text)
             retcode = pm.group(1)
             selector = pm.group(2)
@@ -172,22 +207,8 @@ class WxClient():
             elif '0' == retcode:
                 Exit = 0
                 print 'selector',selector
-
-                PostParam = {
-                    'BaseRequest' : self.BaseRequest,
-                    'SyncKey' : self.Info_SyncKey,
-                    'rr' : ~int(time.time())
-                    }
-                r = self.Session.post('https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxsync?sid=%s&skey=%s&lang=zh_CN&pass_ticket=%s' %
-                                      (self.BaseRequest['Sid'],self.BaseRequest['Skey'],self.Info_Base['pass_ticket']),
-                                      data = json.dumps(PostParam))
-                r.encoding = 'utf-8'
-                MsgDic = json.loads(r.text)
-                if 0 == MsgDic['BaseResponse']['Ret']:
-                    self.Info_SyncKey = MsgDic['SyncKey']
-                    self.Info_SyncKeyStr = '|'.join(str(KeyVal['Key']) + '_' + str(KeyVal['Val']) for KeyVal in self.Info_SyncKey['List'])
-                else:
-                    print 'POST SyncCkeck is not zero',Msg['BaseResponse']['Ret']
+                if '0' != selector:
+                    MsgDic = PostSyncCheck(self)
             else:
                 print 'Unknow code',retcode,selector
                 Exit = 1
