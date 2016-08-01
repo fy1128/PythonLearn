@@ -1,3 +1,5 @@
+#coding:utf-8
+
 import requests
 import time
 import random
@@ -7,6 +9,7 @@ import Image
 import xml.dom.minidom
 import json
 import traceback
+
 
 class WxClient():
     def __init__(self):
@@ -182,6 +185,7 @@ class WxClient():
                 self.Info_SyncKeyStr = '|'.join(str(KeyVal['Key']) + '_' + str(KeyVal['Val']) for KeyVal in self.Info_SyncKey['List'])
                 #sync key OK,we delete it from ret
                 del retjson['SyncKey']
+                del retjson['BaseResponse']
                 return retjson
             else:
                 print 'POST SyncCkeck is not zero',retjson['BaseResponse']['Ret']
@@ -214,6 +218,12 @@ class WxClient():
                 print 'selector',selector
                 if '0' != selector:
                     MsgDic = PostSyncCheck(self)
+                if '7' == selector:
+                    '''
+                        maybe it means:user wan't send a msg by APP and
+                        notify to web that change this DestUser to the first
+                    '''
+                    MsgDic = None
             else:
                 print 'Unknow code',retcode,selector
                 Exit = 1
@@ -234,15 +244,37 @@ class WxClient():
                 retjson = json.loads(r.text)
                 print 'Total friends number',retjson['MemberCount']
                 self.Friends = retjson['MemberList']
+                self.Friends.append(self.Info_User)
             except Exception as e:
                 print e.message, traceback.format_exc()
+
+    def UserName(self,code):
+        for username in self.Friends:
+            if code == username['UserName']:
+                if len(username['RemarkName']):
+                    return username['RemarkName']
+                else:
+                    return username['NickName']
+        return u'匿名人士'
+
+    def ProcMsg(self,MsgDic):
+        '''
+            process msg
+        '''
+        From = None
+        To = None
+        for msg in MsgDic['AddMsgList']:
+            From = self.UserName(msg['FromUserName'])
+            To = self.UserName(msg['ToUserName'])
+            print From,'->',To,' : ',msg['Content']
+
     def Run(self):
         while True:
             Exit,MsgDic = self.SyncCheck()
             if Exit:
                 return False
             if None != MsgDic:
-                print MsgDic
+                self.ProcMsg(MsgDic)
             time.sleep(1)
 
 
