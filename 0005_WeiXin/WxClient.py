@@ -23,11 +23,41 @@ class WxClient():
         self.Info_SyncKeyStr = None
         self.Info_User = {}
         self.IsLogin = False
-        self.SelectOR = {
-            '7' : 'touch on APP',
-            '6' : 'Have a Msg',
-            '2' : 'Send a Msg on APP',
-            }
+
+    def SaveLoginInfo(self):
+        return False
+        try:
+            info = {
+                'BaseRequest' : self.BaseRequest,
+                'Info_Base' : self.Info_Base,
+                'Info_SyncKey' : self.Info_SyncKey,
+                'Info_SyncKeyStr' : self.Info_SyncKeyStr,
+                'Info_User' : self.Info_User,
+                }
+            with open('LoginInfo.json','wb') as f:
+                f.write(json.dumps(info))
+                f.close
+        except Exception as e:
+            print e.message, traceback.format_exc('DeviceID')
+
+    def LoadLoginInfo(self):
+        return False
+        try:
+            with open('LoginInfo.json','r') as f:
+                info = json.loads(f.read())
+                self.BaseRequest = info['BaseRequest']
+                self.Info_Base = info['Info_Base']
+                self.Info_SyncKey = info['Info_SyncKey']
+                self.Info_SyncKeyStr = info['Info_SyncKeyStr']
+                self.Info_User = info['Info_User']
+                f.close()
+                print self.BaseRequest,self.Info_Base,self.Info_SyncKey,self.Info_SyncKeyStr,self.Info_User
+                return True
+        except Exception as e:
+            print e.message, traceback.format_exc()
+            return False
+
+
     def WxLogin(self):
         '''
             web weixin login
@@ -117,6 +147,15 @@ class WxClient():
                 print 'Make sure failure',retjson['BaseResponse']['Ret']
                 return False
 
+        if True == self.LoadLoginInfo():
+            Exit,MsgDic = self.SyncCheck()
+            if 0 == Exit:
+                print 'User Last LoginInfo'
+                return True
+            else:
+                print Exit,MsgDic
+
+        self.BaseRequest['DeviceID'] = 'e' + repr(random.random())[2:17]
         #First,we get UUID
         TimeTick = int(time.time())
         GetParam = {
@@ -186,6 +225,7 @@ class WxClient():
                 #sync key OK,we delete it from ret
                 del retjson['SyncKey']
                 del retjson['BaseResponse']
+                self.SaveLoginInfo()
                 return retjson
             else:
                 print 'POST SyncCkeck is not zero',retjson['BaseResponse']['Ret']
@@ -248,25 +288,105 @@ class WxClient():
             except Exception as e:
                 print e.message, traceback.format_exc()
 
-    def UserName(self,code):
+    def UserID2Name(self,UserID):
         for username in self.Friends:
-            if code == username['UserName']:
+            if UserID == username['UserName']:
                 if len(username['RemarkName']):
                     return username['RemarkName']
                 else:
                     return username['NickName']
         return u'匿名人士'
 
+    def UserName2ID(self,UserName):
+        for userid in self.Friends:
+            if UserName == userid['RemarkName'] or UserName == userid['NickName']:
+                return userid['UserName']
+        return None
+
+    def ProcessMessage(self,msg):
+        print msg
+
     def ProcMsg(self,MsgDic):
         '''
             process msg
         '''
-        From = None
-        To = None
         for msg in MsgDic['AddMsgList']:
-            From = self.UserName(msg['FromUserName'])
-            To = self.UserName(msg['ToUserName'])
-            print From,'->',To,' : ',msg['Content']
+
+            From = self.UserID2Name(msg['FromUserName'])
+            To = self.UserID2Name(msg['ToUserName'])
+            if None == From or None == To:
+                continue
+
+            if '@@' == msg['FromUserName'][:2]:
+                IsFromGroup = 1
+                SubFrom = ''
+            else:
+                IsFromGroup = 0
+                SubFrom = ''
+
+
+            if 1 == msg['MsgType']:
+                #this is text
+                MsgType = 'Text'
+            elif 3 == msg['MsgType']:
+                #this is picture
+                MsgType = 'Picture'
+            elif 34 == msg['MsgType']:
+                #this is voice
+                MsgType = 'Voice'
+            elif 51 == msg['MsgType']:
+                #server notify msg
+                MsgType = 4
+                continue
+            elif 62 == msg['MsgType']:
+                #this is video
+                MsgType = 'Video'
+            else:
+                MsgType = 'Unknow MsgType' + str(msg['MsgType'])
+
+            Message = {
+                'From' : From,
+                'To' : To,
+                'IsFromGroup' : IsFromGroup,
+                'SubFrom' : SubFrom,
+                'MsgType' : MsgType
+                }
+            self.ProcessMessage(Message)
+
+    def SendMsg(self,username,Content):
+        From = self.Info_User['UserName']
+        To = self.UserName2ID(username)
+        if None == From or None == To:
+            print 'Not found',username
+            return False
+        try:
+            TimeTick = int(time.time())
+            PostData = {
+                'BaseRequest' : self.BaseRequest,
+                'Msg' :{
+                    'ClientMsgId' : TimeTick,
+                    'Content' : Content,
+                    'FromUserName':From,
+                    'LocalID' : TimeTick,
+                    'ToUserName' : To,
+                    'Type' : 1
+                    },
+                #'Scene' : 0,
+                }
+            r = self.Session.post('https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxsendmsg?lang=zh_CN&pass_ticket=%s' % (self.Info_Base['pass_ticket']),
+                                  data = json.dumps(PostData,ensure_ascii=False).encode('utf8'),
+                                  headers = {'content-type': 'application/json; charset=UTF-8'})
+            r.encoding = 'utf-8'
+            print r.url,r.headers,json.dumps(PostData,ensure_ascii=False).encode('utf8')
+
+            retjson = json.loads(r.text)
+            if 0 != retjson['BaseResponse']['Ret']:
+                print 'Send Msg Failure',retjson['BaseResponse']['Ret']
+                return False
+            return True
+        except Exception as e:
+            print e.message, traceback.format_exc()
+            return False
 
     def Run(self):
         while True:
