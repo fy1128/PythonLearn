@@ -143,7 +143,10 @@ class WxClient():
             with open('QR.jpeg','wb') as f:
                 f.write(r.content)
                 f.close()
-            Image.open("QR.jpeg").show()
+            try:
+                Image.open("QR.jpeg").show()
+            except:
+                print 'Cant show QR.jpeg by image'
             print 'Save QR to QR.jpeg,please scan it by phone...'
 
             #qr = pyqrcode.create('https://login.weixin.qq.com/qrcode/' + self.Info_Base['UUID'])
@@ -177,9 +180,11 @@ class WxClient():
             if 0 == retjson['BaseResponse']['Ret']:
                 self.Info_SyncKey = retjson['SyncKey']
                 self.Info_SyncKeyStr = '|'.join(str(KeyVal['Key']) + '_' + str(KeyVal['Val']) for KeyVal in self.Info_SyncKey['List'])
+                #sync key OK,we delete it from ret
+                del retjson['SyncKey']
                 return retjson
             else:
-                print 'POST SyncCkeck is not zero',Msg['BaseResponse']['Ret']
+                print 'POST SyncCkeck is not zero',retjson['BaseResponse']['Ret']
                 return None
 
         Exit = 1
