@@ -255,7 +255,8 @@ class WxClient():
                 print 'xxxxx'
             elif '0' == retcode:
                 Exit = 0
-                print 'selector',selector
+                if selector not in ('0','2','6','7'):
+                    print 'selector',selector
                 if '0' != selector:
                     MsgDic = PostSyncCheck(self)
                 if '7' == selector:
@@ -304,7 +305,7 @@ class WxClient():
         return None
 
     def ProcessMessage(self,msg):
-        print msg
+        pass
 
     def ProcMsg(self,MsgDic):
         '''
@@ -349,7 +350,8 @@ class WxClient():
                 'To' : To,
                 'IsFromGroup' : IsFromGroup,
                 'SubFrom' : SubFrom,
-                'MsgType' : MsgType
+                'MsgType' : MsgType,
+                'Msg' : msg['Content'],
                 }
             self.ProcessMessage(Message)
 
