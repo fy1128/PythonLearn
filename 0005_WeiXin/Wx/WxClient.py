@@ -33,6 +33,7 @@ class WxClient():
                 'Info_SyncKey' : self.Info_SyncKey,
                 'Info_SyncKeyStr' : self.Info_SyncKeyStr,
                 'Info_User' : self.Info_User,
+                'Cookies' : requests.utils.dict_from_cookiejar(self.Session.cookies)
                 }
             with open('LoginInfo.json','wb') as f:
                 f.write(json.dumps(info))
@@ -50,8 +51,8 @@ class WxClient():
                 self.Info_SyncKey = info['Info_SyncKey']
                 self.Info_SyncKeyStr = info['Info_SyncKeyStr']
                 self.Info_User = info['Info_User']
+                self.Session.cookies = requests.utils.cookiejar_from_dict(info['Cookies'])
                 f.close()
-                print self.BaseRequest,self.Info_Base,self.Info_SyncKey,self.Info_SyncKeyStr,self.Info_User
                 return True
         except Exception as e:
             print e.message, traceback.format_exc()
@@ -315,15 +316,27 @@ class WxClient():
 
             From = self.UserID2Name(msg['FromUserName'])
             To = self.UserID2Name(msg['ToUserName'])
+            MsgContent = ''
+            MsgUrl = ''
+            print msg['Content']
             if None == From or None == To:
                 continue
 
             if '@@' == msg['FromUserName'][:2]:
                 IsFromGroup = 1
-                SubFrom = ''
+                split = msg['Content'].split(':<br/>')
+                if len(split) > 1:
+                    MsgContent = msg['Content'][len(SubFrom + ':<br/>'):]
+                    SubFrom = self.UserID2Name(split[0])
+                    if None == SubFrom:
+                        SubFrom = u'匿名人士'
+                else:
+                    SubFrom = u'匿名人士'
+                    MsgContent = msg['Content']
             else:
                 IsFromGroup = 0
                 SubFrom = ''
+                MsgContent = msg['Content']
 
 
             if 1 == msg['MsgType']:
@@ -332,15 +345,19 @@ class WxClient():
             elif 3 == msg['MsgType']:
                 #this is picture
                 MsgType = 'Picture'
+                MsgUrl = msg['NewMsgId']
+                MsgContent = ''
             elif 34 == msg['MsgType']:
                 #this is voice
                 MsgType = 'Voice'
+                MsgUrl = msg['NewMsgId']
             elif 51 == msg['MsgType']:
                 #server notify msg
                 MsgType = 4
                 continue
             elif 62 == msg['MsgType']:
                 #this is video
+                MsgUrl = msg['NewMsgId']
                 MsgType = 'Video'
             else:
                 MsgType = 'Unknow MsgType' + str(msg['MsgType'])
@@ -351,7 +368,8 @@ class WxClient():
                 'IsFromGroup' : IsFromGroup,
                 'SubFrom' : SubFrom,
                 'MsgType' : MsgType,
-                'Msg' : msg['Content'],
+                'Msg' : MsgContent,
+                'MsgUrl' : MsgUrl,
                 }
             self.ProcessMessage(Message)
 
@@ -379,12 +397,62 @@ class WxClient():
                                   data = json.dumps(PostData,ensure_ascii=False).encode('utf8'),
                                   headers = {'content-type': 'application/json; charset=UTF-8'})
             r.encoding = 'utf-8'
-            print r.url,r.headers,json.dumps(PostData,ensure_ascii=False).encode('utf8')
 
             retjson = json.loads(r.text)
             if 0 != retjson['BaseResponse']['Ret']:
                 print 'Send Msg Failure',retjson['BaseResponse']['Ret']
                 return False
+            return True
+        except Exception as e:
+            print e.message, traceback.format_exc()
+            return False
+
+    def GetPicture(self,Url,SaveName):
+        try:
+            Params = {
+                'MsgID' : Url,
+                'skey' : self.BaseRequest['Skey'],
+            }
+            r = self.Session.get('https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxgetmsgimg',
+                                 params = Params,stream = True)
+            print r.url
+            with open(SaveName,'wb') as f:
+                f.write(r.content)
+                f.close()
+            return True
+        except Exception as e:
+            print e.message, traceback.format_exc()
+            return False
+
+    def GetVoice(self,Url,SaveName):
+        try:
+            #Params = {
+            #    'msgid' : Url,
+            #    'skey' : self.BaseRequest['Skey'],
+            #}
+            r = self.Session.get('https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxgetvoice?msgid=%s&skey=%s'
+                                 % (Url,self.BaseRequest['Skey']),stream = True)
+            print r.url
+            with open(SaveName,'wb') as f:
+                f.write(r.content)
+                f.close()
+            return True
+        except Exception as e:
+            print e.message, traceback.format_exc()
+            return False
+
+    def GetVideo(self,Url,SaveName):
+        try:
+            Params = {
+                'msgid' : Url,
+                'skey' : self.BaseRequest['Skey'],
+            }
+            r = self.Session.get('https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxgetvideo',
+                                 params=Params,stream = True)
+            print r.url
+            with open(SaveName,'wb') as f:
+                f.write(r.content)
+                f.close()
             return True
         except Exception as e:
             print e.message, traceback.format_exc()

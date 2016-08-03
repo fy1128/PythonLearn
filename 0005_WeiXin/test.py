@@ -1,11 +1,25 @@
-#import Wx
-from Wx import *
+#coding:utf-8
+import Wx
+#from Wx import *
 
-class MyWx (Wx):
+class MyWx (Wx.Wx):
 
     def ProcessMessage(self,Message):
-        print 'From',Message['From'],'->','To',Message['To']
-        print '    Msg',Message['Msg']
+        print Message
+        if Message['IsFromGroup']:
+            print 'From',Message['SubFrom'],'@',Message['From'],'To',Message['To']
+        else:
+            print 'From', Message['From'], 'To', Message['To']
+        if 'Text' == Message['MsgType']:
+            print '    Msg',Message['Msg']
+        elif 'Picture' == Message['MsgType']:
+            Wx.Wx.GetPicture(self,Message['MsgUrl'],'1.jpeg')
+        elif 'Video' == Message['MsgType']:
+            Wx.Wx.GetVideo(self,Message['MsgUrl'],'1.mp4')
+        elif 'Voice' == Message['MsgType']:
+            Wx.Wx.GetVoice(self,Message['MsgUrl'],'1.mp3')
+        else:
+            pass
 
 if __name__ == '__main__':
     wx = MyWx()
