@@ -12,6 +12,8 @@ class MyWx (Wx.Wx):
             print 'From', Message['From'], 'To', Message['To']
         if 'Text' == Message['MsgType']:
             print '    Msg',Message['Msg']
+            if Message['Msg'] == u'发送图片':
+                self.SendPicture(u'詹丽金','1.jpeg',IsPic=False)
         elif 'Picture' == Message['MsgType']:
             Wx.Wx.GetPicture(self,Message['MsgUrl'],'1.jpeg')
         elif 'Video' == Message['MsgType']:

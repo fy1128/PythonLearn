@@ -9,12 +9,15 @@ import Image
 import xml.dom.minidom
 import json
 import traceback
+import os
+import mimetypes
 
 
 class WxClient():
     def __init__(self):
         self.Session = requests.Session()
         self.Session.headers.update({'User-Agent': 'Mozilla/5.0 (X11; Linux i686; U;) Gecko/20070322 Kazehakase/0.4.5'})
+        #self.Session.proxies = {'http': '127.0.0.1:8888', 'https': '127.0.0.1:8888'}
         self.BaseRequest = {
                 'DeviceID' : 'e' + repr(random.random())[2:17],
             }
@@ -23,6 +26,7 @@ class WxClient():
         self.Info_SyncKeyStr = None
         self.Info_User = {}
         self.IsLogin = False
+        self.UploadFileIndex = 0
 
     def SaveLoginInfo(self):
         return False
@@ -420,6 +424,78 @@ class WxClient():
                 f.write(r.content)
                 f.close()
             return True
+        except Exception as e:
+            print e.message, traceback.format_exc()
+            return False
+
+    def SendPicture(self,ToUserName,File,IsPic = False):
+        if not os.path.exists(File):
+            print 'File',File,'Not exist'
+            return False
+
+        fileName = os.path.basename(File)
+        fileLength = os.path.getsize(File)
+        fileType = mimetypes.guess_type(File)[0] or 'application/octet-stream'
+        try:
+            Headers = {
+                'Host' : 'file.wx.qq.com',
+                'Referer' : 'https://wx.qq.com',
+                'User-Agent': 'Mozilla/5.0 (X11; Linux i686; U;) Gecko/20070322 Kazehakase/0.4.5'
+            }
+
+            Files = {
+                'id' : (None,'WU_FILE_' + str(self.UploadFileIndex)),
+                'name' : (None,fileName),
+                'type' : (None,fileType),
+                'lastModifiedDate' : (None,time.strftime('%w %m %d %Y %H:%M:%S GMT+0800')),
+                'size' : (None,str(fileLength)),
+                'mediatype' : (None,'pic' if IsPic else 'doc'),
+                'uploadmediarequest' : (None,json.dumps({
+                    'UploadType' : 2,
+                    'BaseRequest' : self.BaseRequest,
+                    'ClientMediaId' : int(time.time()),
+                    'TotalLen' : fileLength,
+                    'StartPos' : 0,
+                    'DataLen' : fileLength,
+                    'MediaType' : 4,
+                    'FromUserName' : self.Info_User['UserName'],
+                    'ToUserName' : self.UserName2ID(ToUserName),
+                    'FileMd5' : 1,
+                })),
+                'webwx_data_ticket' : (None,self.Session.cookies['webwx_data_ticket']),
+                'pass_ticket' : (None,self.Info_Base['pass_ticket']),
+                'filename' : (fileName,open(File,'rb'),fileType)
+            }
+            self.UploadFileIndex += 1
+            r = self.Session.post('https://file.wx.qq.com/cgi-bin/mmwebwx-bin/webwxuploadmedia?f=json',
+                                  headers = Headers,files = Files)
+            retjson = json.loads(r.text)
+            if 0 == retjson['BaseResponse']['Ret']:
+                Data = {
+                    'BaseRequest' : self.BaseRequest,
+                    'Msg' : {
+                        'Type' : 3,
+                        'MediaId' : retjson['MediaId'],
+                        'ClientMsgId' : int(time.time()),
+                        'LocalID' : int(time.time()),
+                        'FromUserName' : self.Info_User['UserName'],
+                        'ToUserName' : self.UserName2ID(ToUserName),
+                    },
+                    'Scene' : 0,
+                }
+                r = self.Session.post('https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxsendmsgimg?fun=async&f=json&'
+                                      'pass_ticket=%s' % (self.Info_Base['pass_ticket']),
+                                      data = Data)
+                retjson = json.loads(r.text)
+                if 0 == retjson['BaseResponse']['Ret']:
+                    print 'Upload',File,'Success'
+                    return True
+                else:
+                    print 'Upload Check',File,'Failure',retjson['BaseResponse']['Ret']
+                    return False
+            else:
+                print 'Upload',File,'Failure',retjson['BaseResponse']['Ret']
+                return False
         except Exception as e:
             print e.message, traceback.format_exc()
             return False
