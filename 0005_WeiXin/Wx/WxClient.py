@@ -436,7 +436,7 @@ class WxClient():
             print e.message, traceback.format_exc()
             return False
 
-    def SendPicture(self,ToUserName,File,IsPic = False):
+    def SendFile(self,ToUserName,File,IsPic = False):
         if not os.path.exists(File):
             print 'File',File,'Not exist'
             return False
@@ -444,6 +444,7 @@ class WxClient():
         fileName = os.path.basename(File)
         fileLength = os.path.getsize(File)
         fileType = mimetypes.guess_type(File)[0] or 'application/octet-stream'
+        destUrl = 'msgimg' if IsPic else 'appmsg'
         try:
             Headers = {
                 'Host' : 'file.wx.qq.com',
@@ -504,9 +505,9 @@ class WxClient():
                                                 "<attachid>%s</attachid><fileext>%s</fileext>" \
                                                 "</appattach><extinfo></extinfo></appmsg>"  \
                                                 % (fileName,fileLength,retjson['MediaId'],suffix)
-                    print Data
-                r = self.Session.post('https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxsendmsgimg?fun=async&f=json&'
-                                      'pass_ticket=%s' % (self.Info_Base['pass_ticket']),
+
+                r = self.Session.post('https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxsend%s?fun=async&f=json&'
+                                      'pass_ticket=%s' % (destUrl,self.Info_Base['pass_ticket']),
                                       data = json.dumps(Data))
                 retjson = json.loads(r.text)
                 if 0 == retjson['BaseResponse']['Ret']:
