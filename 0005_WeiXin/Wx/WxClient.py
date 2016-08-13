@@ -482,8 +482,7 @@ class WxClient():
                 Data = {
                     'BaseRequest' : self.BaseRequest,
                     'Msg' : {
-                        'Type' : 3,
-                        'MediaId' : retjson['MediaId'],
+                        'Type' : 3 if IsPic else 6,
                         'ClientMsgId' : int(time.time()),
                         'LocalID' : int(time.time()),
                         'FromUserName' : self.Info_User['UserName'],
@@ -491,6 +490,21 @@ class WxClient():
                     },
                     'Scene' : 0,
                 }
+                if IsPic:
+                    Data['Msg']['MediaId'] = retjson['MediaId']
+                else:
+                    Suffix = fileName.split('.')
+                    suffix = ''
+                    if len(Suffix) > 1:
+                        suffix = Suffix[-1]
+                    Data['Msg']['Content'] = "<appmsg appid='wxeb7ec651dd0aefa9' sdkver=''>"    \
+                                                "<title>%s</title><des></des><action></action>" \
+                                                "<type>6</type><content></content><url></url>"  \
+                                                "<lowurl></lowurl><appattach><totallen>%s</totallen>" \
+                                                "<attachid>%s</attachid><fileext>%s</fileext>" \
+                                                "</appattach><extinfo></extinfo></appmsg>"  \
+                                                % (fileName,fileLength,retjson['MediaId'],suffix)
+                    print Data
                 r = self.Session.post('https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxsendmsgimg?fun=async&f=json&'
                                       'pass_ticket=%s' % (self.Info_Base['pass_ticket']),
                                       data = json.dumps(Data))
