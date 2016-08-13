@@ -83,7 +83,8 @@ class WxClient():
                     }
                     #r = self.Session.get('https://login.weixin.qq.com/cgi-bin/mmwebwx-bin/login',params = LoginParam)
                 '''
-                r = self.Session.get('https://login.weixin.qq.com/cgi-bin/mmwebwx-bin/login?tip=0&uuid=%s&_=%s' % (self.Info_Base['UUID'], int(time.time())))
+                r = self.Session.get('https://login.weixin.qq.com/cgi-bin/mmwebwx-bin/login?tip=0&'
+                                     'uuid=%s&_=%s' % (self.Info_Base['UUID'], int(time.time())))
                 r.encoding = 'utf-8'
                 code = re.search(r'window.code=(\d+);', r.content)
                 reurl = re.search(r'window.redirect_uri="(\S+)"', r.content)
@@ -123,7 +124,8 @@ class WxClient():
             PostParams = {
                 'BaseRequest' : self.BaseRequest,
                 }
-            r = self.Session.post('https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxinit?r=%s&lang=zh_CN&pass_ticket=%s' % (int(time.time()),self.Info_Base['pass_ticket'])
+            r = self.Session.post('https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxinit?'
+                                  'r=%s&lang=zh_CN&pass_ticket=%s' % (int(time.time()),self.Info_Base['pass_ticket'])
                                   ,json.dumps(PostParams))
             r.encoding = 'utf-8'
             infoDict = json.loads(r.text)
@@ -143,7 +145,8 @@ class WxClient():
                 'FromUserName' : self.Info_User['UserName'],
                 'ToUserName' : self.Info_User['UserName'],
                 }
-            r = self.Session.post('https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxstatusnotify?lang=zh_CN&pass_ticket=%s' % self.Info_Base['pass_ticket'],data = json.dumps(PostParams))
+            r = self.Session.post('https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxstatusnotify?lang=zh_CN&'
+                                  'pass_ticket=%s' % self.Info_Base['pass_ticket'],data = json.dumps(PostParams))
             r.encoding = 'utf-8'
             retjson = json.loads(r.text)
             if 0 == retjson['BaseResponse']['Ret']:
@@ -219,7 +222,8 @@ class WxClient():
                 'SyncKey' : self.Info_SyncKey,
                 'rr' : ~int(time.time())
                 }
-            r = self.Session.post('https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxsync?sid=%s&skey=%s&lang=zh_CN&pass_ticket=%s' %
+            r = self.Session.post('https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxsync?'
+                                  'sid=%s&skey=%s&lang=zh_CN&pass_ticket=%s' %
                                   (self.BaseRequest['Sid'],self.BaseRequest['Skey'],self.Info_Base['pass_ticket']),
                                   data = json.dumps(PostParam))
             r.encoding = 'utf-8'
@@ -250,7 +254,8 @@ class WxClient():
                 '_': int(time.time()),
             }
 
-            r = self.Session.get('https://webpush.wx.qq.com/cgi-bin/mmwebwx-bin/synccheck',params = params)
+            r = self.Session.get('https://webpush.wx.qq.com/cgi-bin/mmwebwx-bin/synccheck',
+                                 params = params)
             pm = re.search(r'window.synccheck=\{retcode:"(\d+)",selector:"(\d+)"\}',r.text)
             retcode = pm.group(1)
             selector = pm.group(2)
@@ -281,7 +286,9 @@ class WxClient():
     def GetAllFriends(self):
         if True == self.IsLogin:
             try:
-                r = self.Session.get('https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxgetcontact?lang=zh_CN&pass_ticket=%s&r=%s&seq=0&skey=%s' % (self.Info_Base['pass_ticket'],int(time.time()),self.BaseRequest['Skey']))
+                r = self.Session.get('https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxgetcontact?lang=zh_CN&'
+                                     'pass_ticket=%s&r=%s&seq=0&skey=%s' %
+                                     (self.Info_Base['pass_ticket'],int(time.time()),self.BaseRequest['Skey']))
                 r.encoding = 'utf-8'
                 #print r.text
                 with open('contacts.json', 'w') as f:
@@ -397,7 +404,8 @@ class WxClient():
                     },
                 #'Scene' : 0,
                 }
-            r = self.Session.post('https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxsendmsg?lang=zh_CN&pass_ticket=%s' % (self.Info_Base['pass_ticket']),
+            r = self.Session.post('https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxsendmsg?lang=zh_CN&'
+                                  'pass_ticket=%s' % (self.Info_Base['pass_ticket']),
                                   data = json.dumps(PostData,ensure_ascii=False).encode('utf8'),
                                   headers = {'content-type': 'application/json; charset=UTF-8'})
             r.encoding = 'utf-8'
@@ -485,7 +493,7 @@ class WxClient():
                 }
                 r = self.Session.post('https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxsendmsgimg?fun=async&f=json&'
                                       'pass_ticket=%s' % (self.Info_Base['pass_ticket']),
-                                      data = Data)
+                                      data = json.dumps(Data))
                 retjson = json.loads(r.text)
                 if 0 == retjson['BaseResponse']['Ret']:
                     print 'Upload',File,'Success'
