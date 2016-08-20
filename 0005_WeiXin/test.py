@@ -13,6 +13,7 @@ class MyWx (Wx.Wx):
         if 'Text' == Message['MsgType']:
             print '    Msg',Message['Msg']
             if Message['Msg'] == u'发送图片':
+                pass
                 #self.SendFile(u'詹丽金','LoginInfo.json',IsPic=True)
                 ##self.SendFile(u'詹丽金','LoginInfo.json',IsPic=False)
                 ##self.SendFile(u'詹丽金','1.jpeg',IsPic=False)

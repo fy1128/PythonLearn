@@ -329,7 +329,6 @@ class WxClient():
             To = self.UserID2Name(msg['ToUserName'])
             MsgContent = ''
             MsgUrl = ''
-            print msg['Content']
             if None == From or None == To:
                 continue
 
@@ -366,12 +365,12 @@ class WxClient():
                 #server notify msg
                 MsgType = 4
                 continue
-            elif 62 == msg['MsgType']:
+            elif 43 == msg['MsgType']:
                 #this is video
                 MsgUrl = msg['NewMsgId']
                 MsgType = 'Video'
             else:
-                MsgType = 'Unknow MsgType' + str(msg['MsgType'])
+                MsgType = 'Unknow MsgType ' + str(msg['MsgType'])
 
             Message = {
                 'From' : From,
@@ -427,7 +426,6 @@ class WxClient():
             }
             r = self.Session.get('https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxgetmsgimg',
                                  params = Params,stream = True)
-            print r.url
             with open(SaveName,'wb') as f:
                 f.write(r.content)
                 f.close()
@@ -531,7 +529,6 @@ class WxClient():
             #}
             r = self.Session.get('https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxgetvoice?msgid=%s&skey=%s'
                                  % (Url,self.BaseRequest['Skey']),stream = True)
-            print r.url
             with open(SaveName,'wb') as f:
                 f.write(r.content)
                 f.close()
@@ -546,12 +543,16 @@ class WxClient():
                 'msgid' : Url,
                 'skey' : self.BaseRequest['Skey'],
             }
+            #https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxgetmsgimg?&MsgID=1987718430497543110&skey=%40crypt_319dbe2b_a6c4def72e5003d31088dc9b8cd5ba0b&type=slave
+            #https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxgetvideo?msgid=1969358281727116070&skey=%40crypt_319dbe2b_a6c4def72e5003d31088dc9b8cd5ba0b
             r = self.Session.get('https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxgetvideo',
                                  params=Params,stream = True)
             print r.url
+            print r.text.encode('hex')
             with open(SaveName,'wb') as f:
                 f.write(r.content)
                 f.close()
+            print 'OK'
             return True
         except Exception as e:
             print e.message, traceback.format_exc()
